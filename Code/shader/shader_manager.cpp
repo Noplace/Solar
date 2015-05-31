@@ -1,0 +1,114 @@
+/*****************************************************************************************************************
+* Copyright (c) 2012 Khalid Ali Al-Kooheji                                                                       *
+*                                                                                                                *
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and              *
+* associated documentation files (the "Software"), to deal in the Software without restriction, including        *
+* without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell        *
+* copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the       *
+* following conditions:                                                                                          *
+*                                                                                                                *
+* The above copyright notice and this permission notice shall be included in all copies or substantial           *
+* portions of the Software.                                                                                      *
+*                                                                                                                *
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT          *
+* LIMITED TO THE WARRANTIES OF MERCHANTABILITY, * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.          *
+* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, * DAMAGES OR OTHER LIABILITY,      *
+* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE            *
+* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                                         *
+*****************************************************************************************************************/
+#include "../ve.h"
+
+namespace ve {
+
+
+RequestVertexShaderResult ShaderManager::RequestVertexShader(std::string filename, const void* elements, int count) {
+  return RequestVertexShaderAsync(filename,elements,count).get();
+}
+
+concurrency::task<RequestVertexShaderResult> ShaderManager::RequestVertexShaderAsync(std::string filename, const void* elements, int count) {
+  auto vs = vs_map[filename];
+  if (vs.internal_pointer() == nullptr) {
+      
+    auto result = ve::ReadDataAsync(resource_path_+filename).then([this,filename,elements,count](ve::FileData fd){
+      
+        if (fd.data != nullptr) {
+          VertexShader vs;
+          context_->CreateVertexShader(fd.data,fd.length,vs);
+
+          auto il = il_map[filename];
+          if (il.pointer() == nullptr) {
+            context_->CreateInputLayout(elements,count,fd,il);
+            il_map[filename] = il;
+          }
+
+          SafeDeleteArray(&fd.data);
+          vs_map[filename] = vs;
+          return RequestVertexShaderResult { S_OK,vs,il };
+        } else {
+          return RequestVertexShaderResult { S_FALSE };
+        }
+    });
+      
+    return result;
+   
+  } else {
+      auto il = il_map[filename];
+      return concurrency::create_task([vs,il](){ return RequestVertexShaderResult { S_OK,vs,il }; });
+  }
+}
+
+RequestPixelShaderResult ShaderManager::RequestPixelShader(std::string filename) {
+  return RequestPixelShaderAsync(filename).get();
+ /* auto ps = ps_map[filename];
+  if (ps.internal_pointer() == nullptr) {
+      
+    auto fd = ve::ReadDataAsync((resource_path_+filename).c_str()).get();
+      
+    if (fd.data != nullptr) {
+      context_->CreatePixelShader(fd.data,fd.length,ps);
+
+      
+      SafeDeleteArray(&fd.data);
+      ps_map[filename] = ps;
+      return RequestPixelShaderResult { S_OK,ps };
+    } else {
+      return RequestPixelShaderResult { S_FALSE };
+    }
+      
+   
+  } else {
+      return RequestPixelShaderResult { S_OK,ps };
+  }*/
+}
+
+
+concurrency::task<RequestPixelShaderResult> ShaderManager::RequestPixelShaderAsync(std::string filename) {
+  //return concurrency::create_task([this,filename](){
+    auto ps = ps_map[filename];
+    if (ps.internal_pointer() == nullptr) {
+      
+        auto rs = ve::ReadDataAsync((resource_path_+filename)).then([this,filename](ve::FileData fd){
+        if (fd.data != nullptr) {
+          PixelShader ps;
+          context_->CreatePixelShader(fd.data,fd.length,ps);
+
+
+          SafeDeleteArray(&fd.data);
+          ps_map[filename] = ps;
+          return RequestPixelShaderResult { S_OK,ps };
+        } else {
+          return RequestPixelShaderResult { S_FALSE };
+        }
+     
+
+      });
+
+      return rs;
+   
+    } else {
+        return concurrency::create_task([ps](){ return RequestPixelShaderResult { S_OK,ps }; });
+    }
+  //});
+} 
+
+}
