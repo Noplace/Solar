@@ -34,10 +34,10 @@ namespace ve {
 std::vector<IDXGIAdapter*> EnumerateDXGIAdapters() {
   IDXGIAdapter * adaptor; 
   std::vector <IDXGIAdapter*> adaptors; 
-  IDXGIFactory2* factory = NULL; 
+  IDXGIFactory1* factory = NULL; 
 
   // Create a DXGIFactory object.
-  if(FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory2) ,(void**)&factory))) {
+  if(FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1) ,(void**)&factory))) {
     return adaptors;
   }
 
@@ -198,6 +198,8 @@ int ContextD3D11::CreateDeviceResources() {
 
   D3D_FEATURE_LEVEL featureLevels[] =
   {
+    D3D_FEATURE_LEVEL_12_1,
+    D3D_FEATURE_LEVEL_12_0,
     D3D_FEATURE_LEVEL_11_1,
     D3D_FEATURE_LEVEL_11_0,
     D3D_FEATURE_LEVEL_10_1,
